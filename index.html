@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Purchase Order Form</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+    .highlight { background-color: yellow; }
+    .btn { padding: 5px 10px; margin: 2px; cursor: pointer; }
+    input[type=text], select, textarea { width: 100%; box-sizing: border-box; }
+    .section { margin-top: 20px; }
+    .row { display: flex; gap: 20px; align-items: center; }
+    .half { flex: 1; }
+    .third { flex: 1; }
+    .quarter { width: 25%; }
+    .right { margin-left: auto; }
+    .left-half { width: 50%; }
+    .billto-section input { margin-bottom: 2px; }
+    .half select, .half input, .half div, .half {
+    width: 100%;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+</style>
+</head>
+<body onload="insertToday()">
+
+<!-- Logo -->
+<!--<div style="text-align:right;">
+ <img src="YOUR_LOGO_PATH_HERE.png" alt="Reliable Laser Solutions Logo" style="height:80px;">
+</div>--!>
+
+<p></p>
+
+<!-- Purchase Order Form Title -->
+<h2>Purchase Order Form</h2>
+
+<!-- Bill To Section -->
+<div class="billto-section quarter">
+  <label>Bill To:</label>
+  <input type="text" value="Agiliti Surgical">
+  <input type="text" value="11095 Viking Drive, Suite 300">
+  <input type="text" value="Eden Prairie, MN 55344">
+  <input type="text" value="630-663-5180 Phone">
+  <input type="text" value="630-663-5188 Fax">
+</div>
+
+<!-- Date/Time -->
+<div style="text-align:right;">
+  <label>Date/Time:</label>
+  <span id="date"></span>
+</div>
+
+<!-- Purchase Order Number -->
+<div class="section">
+  <div class="right" style="width:50%;">
+    <label>Purchase Order Number:</label>
+    <input type="text" id="ponum">
+  </div>
+</div>
+
+<!-- Vendor and Ship To -->
+<div class="section row">
+  <div class="half">
+    <label>Vendor:</label>
+    <select id="vendor" onchange="toggleVendorCustom()">
+      <option value="Reliable Laser Solutions, 10563 Laurelglen Cir, Highlands Ranch, CO, 80130, Charly Tullis">Reliable Laser Solutions, 10563 Laurelglen Cir, Highlands Ranch, CO, 80130, Charly Tullis</option>
+      <option value="Custom">Custom</option>
+    </select>
+    <div id="vendorCustomDiv" style="display:none;">
+      <input type="text" id="vendorCustom" placeholder="Enter vendor address">
+    </div>
+    <div id="vendorPrint" style="display:none; white-space: pre-wrap;"></div>
+  </div>
+
+  <div class="half">
+    <label>Ship To:</label>
+    <select id="shipto" onchange="toggleShipToCustom()">
+      <option value="Agiliti, 135 WEST OXMOOR RD., SUITE 333, HOMEWOOD, AL, 35209">Agiliti, 135 WEST OXMOOR RD., SUITE 333, HOMEWOOD, AL, 35209</option>
+      <option value="Custom">Custom</option>
+    </select>
+    <div id="shiptoCustomDiv" style="display:none;">
+      <input type="text" id="shiptoCustom" placeholder="Enter shipping address">
+    </div>
+    <div id="shiptoPrint" style="display:none; white-space: pre-wrap;"></div>
+  </div>
+</div>
+
+<!-- Ship Via and FedEx Account -->
+<div class="section row">
+  <div class="left-half">
+    <label>Ship Via:</label>
+    <select>
+      <option>FedEx Ground</option>
+      <option>FedEx Express Saver</option>
+      <option>FedEx 2Day</option>
+      <option>FedEx Standard Overnight</option>
+      <option>FedEx Priority Overnight</option>
+      <option>FedEx First Overnight</option>
+    </select>
+  </div>
+  <div>
+    <input type="checkbox" id="useAgiliti" onchange="toggleFedExAccount()">
+    <label for="useAgiliti">Use Agiliti FedEx Account</label>
+  </div>
+  <div id="fedexAccountDiv" class="quarter" style="display:none;">
+    <label>FedEx Shipping Account Number:</label>
+    <input type="text" value="511952948">
+  </div>
+</div>
+
+<!-- Order Table -->
+<div class="section">
+  <table id="orderTable">
+    <tr>
+      <th>Item Description <button class="btn" onclick="addRow()">+</button><button class="btn" onclick="removeRow()">-</button></th>
+      <th>Vendor Part Number</th>
+      <th>Quantity</th>
+      <th>Unit</th>
+      <th>Unit Price</th>
+      <th>Extended Price</th>
+    </tr>
+  </table>
+</div>
+
+<!-- Total -->
+<div class="section">
+  <label>Total:</label>
+  <span id="total">0.00</span>
+</div>
+
+<!-- Contact Info -->
+<div class="section row">
+  <div class="third">
+    <label>Contact Name:</label>
+    <input type="text" id="contactName" oninput="updateContactPrint()">
+    <div id="contactNamePrint" style="display:none;"></div>
+  </div>
+  <div class="third">
+    <label>Contact Number:</label>
+    <input type="text" id="contactNumber" oninput="updateContactPrint()">
+    <div id="contactNumberPrint" style="display:none;"></div>
+  </div>
+  <div class="third">
+    <label>Contact Email:</label>
+    <input type="text" id="contactEmail" oninput="updateContactPrint()">
+    <div id="contactEmailPrint" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Notes -->
+<div class="section">
+  <label>Notes:</label>
+  <textarea id="notes" rows="3" oninput="updateNotesPrint()"></textarea>
+  <div id="notesPrint" style="display:none; white-space: pre-wrap;"></div>
+</div>
+
+<!-- Submit Order Button -->
+<div style="text-align:right; margin-top:20px;">
+  <button id="submitOrder" class="btn" onclick="submitOrder()" disabled>Submit Order</button>
+</div>
+
+<script>
+// Lookup object mapping Item Description to Vendor Part Number
+// Central item map with description, part number, and unit price
+const items = [
+  { desc: "Lumenis P30H/P20 DI Filter", part: "PLFIL0017", price: 110 },
+  { desc: "Sphinx Blast Shield", part: "PLLPZ0285", price: 120 },
+  { desc: "Powersuite Blast Shield Optic", part: "PLWFS-0009", price: 130 },
+  { desc: "Powersuite First Relay", part: "PLLPZ0252", price: 140 },
+  { desc: "Powersuite Plano Relay", part: "PLTRS0061", price: 150 },
+  { desc: "Powersuite45 Fold Mirror", part: "PLLPZ0127", price: 160 },
+  { desc: "Powersuite HR", part: "PLLPZ0293", price: 170 },
+  { desc: "Powersuite OC", part: "PLLPZ0294", price: 180 },
+  { desc: "Loaded Power Suite Brick", part: "PLBRK0004", price: 190 },
+  { desc: "Powersuite DI Cartridge", part: "PLFIL0013", price: 200 },
+  { desc: "Powersuite Particle Filter", part: "PLFIL0012", price: 210 }
+];
+const itemToPartMap = Object.fromEntries(items.map(i => [i.desc, i.part]));
+const partToItemMap = Object.fromEntries(items.map(i => [i.part, i.desc]));
+const itemToPriceMap = Object.fromEntries(items.map(i => [i.desc, i.price]));
+const partToPriceMap = Object.fromEntries(items.map(i => [i.part, i.price]));
+
+
+function toggleVendorCustom() {
+  document.getElementById('vendorCustomDiv').style.display = (document.getElementById('vendor').value === 'Custom') ? 'block' : 'none';
+}
+
+function toggleShipToCustom() {
+  document.getElementById('shiptoCustomDiv').style.display = (document.getElementById('shipto').value === 'Custom') ? 'block' : 'none';
+}
+
+function insertToday() {
+  let d = new Date();
+  let dateStr = d.toLocaleDateString();
+  let timeStr = d.toLocaleTimeString();
+  document.getElementById('date').innerText = `${dateStr}, ${timeStr}`;
+}
+
+function toggleFedExAccount() {
+  document.getElementById('fedexAccountDiv').style.display = document.getElementById('useAgiliti').checked ? 'block' : 'none';
+}
+
+function highlightCustom(input) {
+  input.className = input.value ? 'highlight' : '';
+}
+
+function addRow() {
+  let table = document.getElementById('orderTable');
+  let row = table.insertRow(-1);
+
+  // Item Description
+   let cell0 = row.insertCell(0);  
+   cell0.innerHTML = `
+  <select onchange="syncPartFromItem(this); toggleCustom(this); updateItemPrints();">
+    <option value="">Select Item</option>
+    ${items.map(i=>`<option value="${i.desc}">${i.desc}</option>`).join('')}
+    <option>Custom</option>
+  </select>
+  <input type="text" style="display:none;" placeholder="Custom description" oninput="updateItemPrints()">
+  <div class="itemDescPrint" style="display:none;"></div>
+`;
+
+  // Vendor Part Number
+  let cell1 = row.insertCell(1);
+  cell1.innerHTML = `
+  <select onchange="syncItemFromPart(this); toggleCustom(this); updateItemPrints();">
+    <option value="">Select Part</option>
+    ${items.map(i=>`<option value="${i.part}">${i.part}</option>`).join('')}
+    <option>Custom</option>
+  </select>
+  <input type="text" style="display:none;" placeholder="Custom part number" oninput="updateItemPrints()">
+  <div class="vendorPartPrint" style="display:none;"></div>
+`;
+
+  let cell2 = row.insertCell(2);
+  cell2.innerHTML = `<select onchange="toggleCustom(this)">${[...Array(10).keys()].map(i=>`<option>${i+1}</option>`).join('')}<option>Custom</option></select><input type='number' style='display:none;' placeholder='Custom qty' oninput='calculateRow(this)'>`;
+
+  let cell3 = row.insertCell(3);
+  cell3.innerHTML = `<select onchange="toggleCustom(this)"><option>Each</option><option>Custom</option></select><input type='text' style='display:none;' placeholder='Custom unit'>`;
+
+  let cell4 = row.insertCell(4);
+cell4.innerHTML = `<input type='number' placeholder='Unit Price' readonly>`;
+
+  let cell5 = row.insertCell(5);
+  cell5.innerHTML = `<input type='text' readonly>`;
+}
+
+function removeRow() {
+  let table = document.getElementById('orderTable');
+  if(table.rows.length > 1) table.deleteRow(-1);
+  calculateTotal();
+}
+
+// When Item Description is changed, update Vendor Part Number
+function syncPartFromItem(select) {
+  const row = select.closest('tr');
+  const partSelect = row.cells[1].querySelector('select');
+  const priceInput = row.cells[4].querySelector('input');
+  const desc = select.value;
+
+  const correspondingPart = itemToPartMap[desc];
+  const correspondingPrice = itemToPriceMap[desc];
+
+  if(correspondingPart) {
+    partSelect.value = correspondingPart;
+  }
+  if(correspondingPrice) {
+  priceInput.value = correspondingPrice;
+}
+  calculateRow(select);
+}
+
+// When Vendor Part Number is changed, update Item Description
+function syncItemFromPart(select) {
+  const row = select.closest('tr');
+  const descSelect = row.cells[0].querySelector('select');
+  const priceInput = row.cells[4].querySelector('input');
+  const part = select.value;
+
+  const correspondingDesc = partToItemMap[part];
+  const correspondingPrice = partToPriceMap[part];
+
+  if(correspondingDesc) {
+    descSelect.value = correspondingDesc;
+  }
+  if(correspondingPrice) {
+  priceInput.value = correspondingPrice;
+}
+  calculateRow(select);
+}
+
+function toggleCustom(select) {
+  let input = select.nextElementSibling;
+  if(select.value === 'Custom') {
+    input.style.display = 'block';
+    highlightCustom(input); // <-- Added this line to immediately apply highlight
+  } else {
+    input.style.display = 'none';
+    input.classList.remove('highlight'); // Remove highlight if switching away from Custom
+  }
+  calculateRow(input);
+}
+
+function calculateRow(input) {
+  let row = input.closest('tr');
+  let qtySelect = row.cells[2].querySelector('select');
+  let qtyInput = row.cells[2].querySelector('input');
+  let qty = (qtySelect.value === 'Custom') ? parseFloat(qtyInput.value) : parseFloat(qtySelect.value);
+
+  let priceInput = row.cells[4].querySelector('input');
+  let price = parseFloat(priceInput.value);
+
+
+  let ext = qty * price;
+  row.cells[5].querySelector('input').value = isNaN(ext) ? '' : ext.toFixed(2);
+  calculateTotal();
+}
+
+function calculateTotal() {
+  let total = 0;
+  document.querySelectorAll('#orderTable tr').forEach((row,i)=>{
+    if(i===0) return;
+    let val = parseFloat(row.cells[5].querySelector('input').value);
+    total += isNaN(val) ? 0 : val;
+  });
+  document.getElementById('total').innerText = total.toFixed(2);
+}
+
+function updateVendorPrint() {
+  let val = document.getElementById('vendor').value;
+  if(val === 'Custom') {
+    val = document.getElementById('vendorCustom').value;
+  }
+  document.getElementById('vendorPrint').innerText = val;
+}
+
+function updateContactPrint() {
+  document.getElementById('contactNamePrint').innerText = document.getElementById('contactName').value;
+  document.getElementById('contactNumberPrint').innerText = document.getElementById('contactNumber').value;
+  document.getElementById('contactEmailPrint').innerText = document.getElementById('contactEmail').value;
+}
+
+function updateNotesPrint() {
+  document.getElementById('notesPrint').innerText = document.getElementById('notes').value;
+}
+
+function updateItemPrints() {
+  document.querySelectorAll('#orderTable tr').forEach((row, i) => {
+    if(i===0) return; // skip header
+
+    // Item Description
+    let descSelect = row.cells[0].querySelector('select');
+    let descInput = row.cells[0].querySelector('input');
+    let descPrint = row.cells[0].querySelector('.itemDescPrint');
+    let descVal = (descSelect.value === 'Custom') ? descInput.value : descSelect.value;
+    descPrint.innerText = descVal;
+
+    // Vendor Part Number
+    let partSelect = row.cells[1].querySelector('select');
+    let partInput = row.cells[1].querySelector('input');
+    let partPrint = row.cells[1].querySelector('.vendorPartPrint');
+    let partVal = (partSelect.value === 'Custom') ? partInput.value : partSelect.value;
+    partPrint.innerText = partVal;
+  });
+}
+
+function updateShiptoPrint() {
+  let val = document.getElementById('shipto').value;
+  if(val === 'Custom') {
+    val = document.getElementById('shiptoCustom').value;
+  }
+  document.getElementById('shiptoPrint').innerText = val;
+}
+
+function validateForm() {
+  let ponum = document.getElementById('ponum').value.trim() !== '';
+  let contactName = document.querySelectorAll('.third input')[0].value.trim() !== '';
+  let contactNumber = document.querySelectorAll('.third input')[1].value.trim() !== '';
+  let contactEmail = document.querySelectorAll('.third input')[2].value.trim() !== '';
+  let hasItem = document.querySelectorAll('#orderTable tr').length > 1;
+  let allValid = ponum && contactName && contactNumber && contactEmail && hasItem;
+  document.getElementById('submitOrder').disabled = !allValid;
+}
+
+document.addEventListener('input', validateForm);
+document.addEventListener('change', validateForm);
+
+async function submitOrder() {
+  const btn = document.getElementById('submitOrder');
+  btn.disabled = true;
+  btn.innerText = 'Submitting...';
+
+  // Update print-only divs before generating PDF
+  updateVendorPrint();
+  updateShiptoPrint();
+  updateContactPrint();
+  updateNotesPrint();
+  updateItemPrints();
+
+  // Hide interactive inputs and show print-only divs
+  document.getElementById('vendor').style.display = 'none';
+  document.getElementById('vendorPrint').style.display = 'block';
+  document.getElementById('shipto').style.display = 'none';
+  document.getElementById('shiptoPrint').style.display = 'block';
+
+  document.getElementById('contactName').style.display = 'none';
+  document.getElementById('contactNamePrint').style.display = 'block';
+  document.getElementById('contactNumber').style.display = 'none';
+  document.getElementById('contactNumberPrint').style.display = 'block';
+  document.getElementById('contactEmail').style.display = 'none';
+  document.getElementById('contactEmailPrint').style.display = 'block';
+
+  document.getElementById('notes').style.display = 'none';
+  document.getElementById('notesPrint').style.display = 'block';
+
+  // For each item row
+  document.querySelectorAll('#orderTable tr').forEach((row, i) => {
+    if(i===0) return;
+    // Item Description
+    row.cells[0].querySelector('select').style.display = 'none';
+    row.cells[0].querySelector('input').style.display = 'none';
+    row.cells[0].querySelector('.itemDescPrint').style.display = 'block';
+
+    // Vendor Part Number
+    row.cells[1].querySelector('select').style.display = 'none';
+    row.cells[1].querySelector('input').style.display = 'none';
+    row.cells[1].querySelector('.vendorPartPrint').style.display = 'block';
+  });
+
+  try {
+    // ✅ Generate PDF
+    const element = document.body;
+    const opt = {
+      margin:       0.2,
+      filename:     'order.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    const pdfBase64 = await html2pdf().set(opt).from(element).outputPdf('datauristring');
+    const pdfContent = pdfBase64.split(',')[1];
+
+    // ✅ Send to Google Apps Script
+    const response = await fetch('https://script.google.com/macros/s/AKfycbwGOJAo_ERpeIUkfAkQX82QNpdY55dkZfS9axfE6UJRk-O87zovyagwngk-7cUJJZ6X/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base64: pdfContent,
+        filename: 'order.pdf'
+      })
+    });
+
+    const result = await response.text();
+    console.log(result);
+
+    alert('Order submitted successfully.');
+  } catch (error) {
+    console.error('Error submitting order:', error);
+    alert('An error occurred while submitting. Please try again.');
+  }
+
+  // ✅ Revert interactive view
+  document.getElementById('vendor').style.display = 'block';
+  document.getElementById('vendorPrint').style.display = 'none';
+  document.getElementById('shipto').style.display = 'block';
+  document.getElementById('shiptoPrint').style.display = 'none';
+
+  document.getElementById('contactName').style.display = 'block';
+  document.getElementById('contactNamePrint').style.display = 'none';
+  document.getElementById('contactNumber').style.display = 'block';
+  document.getElementById('contactNumberPrint').style.display = 'none';
+  document.getElementById('contactEmail').style.display = 'block';
+  document.getElementById('contactEmailPrint').style.display = 'none';
+
+  document.getElementById('notes').style.display = 'block';
+  document.getElementById('notesPrint').style.display = 'none';
+
+  document.querySelectorAll('#orderTable tr').forEach((row, i) => {
+    if(i===0) return;
+    row.cells[0].querySelector('select').style.display = 'block';
+    row.cells[0].querySelector('input').style.display = (row.cells[0].querySelector('select').value === 'Custom') ? 'block' : 'none';
+    row.cells[0].querySelector('.itemDescPrint').style.display = 'none';
+
+    row.cells[1].querySelector('select').style.display = 'block';
+    row.cells[1].querySelector('input').style.display = (row.cells[1].querySelector('select').value === 'Custom') ? 'block' : 'none';
+    row.cells[1].querySelector('.vendorPartPrint').style.display = 'none';
+  });
+
+  // ✅ Cooldown timer
+  let countdown = 10;
+  const interval = setInterval(() => {
+    btn.innerText = `Cooldown (${countdown})`;
+    countdown--;
+    if(countdown < 0) {
+      clearInterval(interval);
+      btn.disabled = false;
+      btn.innerText = 'Submit Order';
+    }
+  }, 1000);
+}</script>
+
+</body>
+</html>
